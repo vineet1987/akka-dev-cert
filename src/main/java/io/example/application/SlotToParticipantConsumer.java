@@ -23,8 +23,63 @@ public class SlotToParticipantConsumer extends Consumer {
     }
 
     public Effect onEvent(BookingEvent event) {
-        // Supply your own implementation
-        return effects().done();
+        return switch (event) {
+            case BookingEvent.ParticipantBooked e -> onEvent(e);
+            case BookingEvent.ParticipantCanceled e -> onEvent(e);
+            case BookingEvent.ParticipantMarkedAvailable e -> onEvent(e);
+            case BookingEvent.ParticipantUnmarkedAvailable e -> onEvent(e);
+        };
+    }
+
+    private Effect onEvent(BookingEvent.ParticipantBooked event) {
+        var command = new ParticipantSlotEntity.Commands.Book(
+                event.slotId(),
+                event.participantId(),
+                event.participantType(),
+                event.bookingId());
+
+        var participantSlot = client.forEventSourcedEntity(participantSlotId(event))
+                .method(ParticipantSlotEntity::book)
+                .invokeAsync(command);
+        return effects().asyncDone(participantSlot);
+    }
+
+    private Effect onEvent(BookingEvent.ParticipantCanceled event) {
+        logger.info("Canceling booking {} for participant {}", event.bookingId(), event.participantId());
+        var command = new ParticipantSlotEntity.Commands.Cancel(
+                event.slotId(),
+                event.participantId(),
+                event.participantType(),
+                event.bookingId());
+
+        var participantSlot = client.forEventSourcedEntity(participantSlotId(event))
+                .method(ParticipantSlotEntity::cancel)
+                .invokeAsync(command);
+        return effects().asyncDone(participantSlot);
+    }
+
+    private Effect onEvent(BookingEvent.ParticipantMarkedAvailable event) {
+        var command = new ParticipantSlotEntity.Commands.MarkAvailable(
+                event.slotId(),
+                event.participantId(),
+                event.participantType());
+
+        var participantSlot = client.forEventSourcedEntity(participantSlotId(event))
+                .method(ParticipantSlotEntity::markAvailable)
+                .invokeAsync(command);
+        return effects().asyncDone(participantSlot);
+    }
+
+    private Effect onEvent(BookingEvent.ParticipantUnmarkedAvailable event) {
+        var command = new ParticipantSlotEntity.Commands.UnmarkAvailable(
+                event.slotId(),
+                event.participantId(),
+                event.participantType());
+
+        var participantSlot = client.forEventSourcedEntity(participantSlotId(event))
+                .method(ParticipantSlotEntity::unmarkAvailable)
+                .invokeAsync(command);
+        return effects().asyncDone(participantSlot);
     }
 
     // Participant slots are keyed by a derived key made up of
@@ -34,8 +89,7 @@ public class SlotToParticipantConsumer extends Consumer {
     private String participantSlotId(BookingEvent event) {
         return switch (event) {
             case BookingEvent.ParticipantBooked evt -> evt.slotId() + "-" + evt.participantId();
-            case BookingEvent.ParticipantUnmarkedAvailable evt ->
-                evt.slotId() + "-" + evt.participantId();
+            case BookingEvent.ParticipantUnmarkedAvailable evt -> evt.slotId() + "-" + evt.participantId();
             case BookingEvent.ParticipantMarkedAvailable evt -> evt.slotId() + "-" + evt.participantId();
             case BookingEvent.ParticipantCanceled evt -> evt.slotId() + "-" + evt.participantId();
         };
