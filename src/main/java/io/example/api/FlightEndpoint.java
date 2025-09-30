@@ -48,7 +48,7 @@ public class FlightEndpoint extends AbstractHttpEndpoint {
                 .method(BookingSlotEntity::bookSlot)
                 .invoke(command);
 
-        return HttpResponses.ok();
+        return HttpResponses.created();
     }
 
     // Cancels an existing booking. Note that both the slot

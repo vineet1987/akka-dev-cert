@@ -3,6 +3,8 @@ package io.example.application;
 import akka.javasdk.testkit.TestKitSupport;
 import io.example.domain.Participant;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ParticipantSlotsViewTest extends TestKitSupport {
+
+    private final Logger log = LoggerFactory.getLogger(ParticipantSlotsViewTest.class);
 
     static Participant studentParticipant = new Participant("alice", Participant.ParticipantType.STUDENT);
     static Participant aircraftParticipant = new Participant("superplane", Participant.ParticipantType.AIRCRAFT);
@@ -171,9 +175,9 @@ class ParticipantSlotsViewTest extends TestKitSupport {
 
     private void sleep(int seconds) {
         try {
-            System.out.println("################");
-            System.out.printf("Sleeping for %d seconds%n", seconds);
-            System.out.println("################");
+            log.info("################");
+            log.info("Sleeping for {} seconds", seconds);
+            log.info("################");
             TimeUnit.SECONDS.sleep(seconds);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

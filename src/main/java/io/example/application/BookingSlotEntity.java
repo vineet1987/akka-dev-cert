@@ -63,21 +63,9 @@ public class BookingSlotEntity extends EventSourcedEntity<Timeslot, BookingEvent
         }
         return effects().persistAll(
                 List.of(
-                        new BookingEvent.ParticipantBooked(
-                                entityId,
-                                cmd.studentId,
-                                Participant.ParticipantType.STUDENT,
-                                cmd.bookingId),
-                        new BookingEvent.ParticipantBooked(
-                                entityId,
-                                cmd.aircraftId,
-                                Participant.ParticipantType.AIRCRAFT,
-                                cmd.bookingId),
-                        new BookingEvent.ParticipantBooked(
-                                entityId,
-                                cmd.instructorId,
-                                Participant.ParticipantType.INSTRUCTOR,
-                                cmd.bookingId))
+                        buildParticipantBooked(cmd, cmd.studentId, Participant.ParticipantType.STUDENT),
+                        buildParticipantBooked(cmd, cmd.aircraftId, Participant.ParticipantType.AIRCRAFT),
+                        buildParticipantBooked(cmd, cmd.instructorId, Participant.ParticipantType.INSTRUCTOR))
         ).thenReply(newState -> done());
     }
 
@@ -152,5 +140,17 @@ public class BookingSlotEntity extends EventSourcedEntity<Timeslot, BookingEvent
             errors.add(String.format("[Participant with Id: %1$s and type: %2$s is not available]", cmd.instructorId,
                     Participant.ParticipantType.INSTRUCTOR));
         return errors;
+    }
+
+    private BookingEvent.ParticipantBooked buildParticipantBooked(
+            Command.BookReservation cmd,
+            String participantId,
+            Participant.ParticipantType participantType
+    ) {
+        return new BookingEvent.ParticipantBooked(
+                entityId,
+                participantId,
+                participantType,
+                cmd.bookingId);
     }
 }

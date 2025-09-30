@@ -1,10 +1,13 @@
 package io.example.api;
 
+import akka.javasdk.http.HttpResponses;
 import akka.javasdk.testkit.TestKitSupport;
 import io.example.application.ParticipantSlotsView;
 import io.example.domain.Participant;
 import io.example.domain.Timeslot;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FlightEndpointTest extends TestKitSupport {
+
+    private final Logger log = LoggerFactory.getLogger(FlightEndpointTest.class);
 
     static Participant studentParticipant = new Participant("alice", Participant.ParticipantType.STUDENT);
     static Participant aircraftParticipant = new Participant("superplane", Participant.ParticipantType.AIRCRAFT);
@@ -96,6 +101,17 @@ class FlightEndpointTest extends TestKitSupport {
     }
 
     @Test
+    public void testPostUnmarkAvailableShouldFailForInvalidParticipantType() {
+        String slot = generateSlot();
+
+        var response = httpClient.DELETE("/flight/availability/" + slot).withRequestBody(
+                new FlightEndpoint.AvailabilityRequest("alice", "randomParticipantType")
+        ).invoke();
+        assertTrue(response.status().isFailure());
+    }
+
+
+    @Test
     public void testCreateBooking() {
         String slot = generateSlot();
         String bookingId = generateBookingId();
@@ -113,7 +129,10 @@ class FlightEndpointTest extends TestKitSupport {
                         instructorParticipant.id(),
                         bookingId)).invoke();
 
-        assertTrue(createBookingResponse.status().isSuccess());
+        var createBookingResponseStatus = createBookingResponse.status();
+
+        assertTrue(createBookingResponseStatus.isSuccess());
+        assertEquals(HttpResponses.created().status().intValue(), createBookingResponseStatus.intValue());
 
         checkTimeSlot(slot, 3, 0);
 
@@ -210,9 +229,9 @@ class FlightEndpointTest extends TestKitSupport {
 
     private void sleep(int seconds) {
         try {
-            System.out.println("################");
-            System.out.printf("Sleeping for %d seconds%n", seconds);
-            System.out.println("################");
+            log.info("################");
+            log.info("Sleeping for {} seconds", seconds);
+            log.info("################");
             TimeUnit.SECONDS.sleep(seconds);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
