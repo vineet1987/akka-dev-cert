@@ -20,6 +20,20 @@ class BookingSlotEntityTest {
     static List<Participant> participantList = List.of(studentParticipant, aircraftParticipant, instructorParticipant);
 
     @Test
+    void testZeroBookingsAndZeroAvailable() {
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
+        participantList.forEach(p -> {
+            var result = testKit.method(BookingSlotEntity::getSlot).invoke();
+            assertTrue(result.isReply());
+
+            var timeSlot = (Timeslot) result.getUpdatedState();
+            assertTrue(timeSlot.bookings().isEmpty());
+            assertTrue(timeSlot.available().isEmpty());
+        });
+    }
+
+    @Test
     void testMarkSlotAvailable() {
         var slot = generateSlot();
         var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);

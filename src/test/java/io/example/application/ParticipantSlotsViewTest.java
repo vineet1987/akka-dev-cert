@@ -12,7 +12,7 @@ import static akka.Done.done;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ParticipantSlowsViewTest extends TestKitSupport {
+class ParticipantSlotsViewTest extends TestKitSupport {
 
     static Participant studentParticipant = new Participant("alice", Participant.ParticipantType.STUDENT);
     static Participant aircraftParticipant = new Participant("superplane", Participant.ParticipantType.AIRCRAFT);
@@ -32,7 +32,7 @@ class ParticipantSlowsViewTest extends TestKitSupport {
             assertEquals(done(), result);
         });
 
-        sleep(5);
+        sleep(10);
 
         participantList.forEach(p -> {
             var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "available").slots();
@@ -68,7 +68,7 @@ class ParticipantSlowsViewTest extends TestKitSupport {
 
         assertEquals(done(), bookResult);
 
-        sleep(5);
+        sleep(10);
 
         participantList.forEach(p -> {
             var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "booked").slots();
@@ -120,6 +120,38 @@ class ParticipantSlowsViewTest extends TestKitSupport {
             var slotRow = slotsList.getFirst();
             assertEquals(p.id(), slotRow.participantId());
             assertEquals(p.participantType().name(), slotRow.participantType());
+        });
+    }
+
+    @Test
+    public void testQueryParticipantUnmarkedAvailableTest() {
+        var slot = generateSlot();
+
+        participantList.forEach(p -> {
+            var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
+            var result = componentClient.forEventSourcedEntity(slot)
+                    .method(BookingSlotEntity::markSlotAvailable)
+                    .invoke(command);
+            assertEquals(done(), result);
+
+            var unmarkedAvailableCommand = new BookingSlotEntity.Command.UnmarkSlotAvailable(p);
+            var unmarkedAvailableResult = componentClient.forEventSourcedEntity(slot)
+                    .method(BookingSlotEntity::unmarkSlotAvailable)
+                    .invoke(unmarkedAvailableCommand);
+            assertEquals(done(), result);
+        });
+
+        sleep(10);
+
+        participantList.forEach(p -> {
+            var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "unavailable").slots();
+            assertEquals(1, slotsList.size());
+
+            var slotRow = slotsList.getFirst();
+            assertEquals(slot, slotRow.slotId());
+            assertEquals(p.id(), slotRow.participantId());
+            assertEquals(p.participantType().name(), slotRow.participantType());
+            assertTrue(slotRow.bookingId().isEmpty());
         });
     }
 
