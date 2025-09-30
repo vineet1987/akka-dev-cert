@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static akka.Done.done;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ParticipantSlotsViewTest extends TestKitSupport {
 
@@ -98,7 +99,7 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
 
         assertEquals(done(), cancelBookingResult);
 
-        sleep(5);
+        sleep(10);
 
         participantList.forEach(p -> {
             var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "canceled").slots().stream().filter(slot -> slot.slotId().equals("bestslot2")).toList();
@@ -126,6 +127,9 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
 
     private void sleep(int seconds) {
         try {
+            System.out.println("################");
+            System.out.printf("Sleeping for %d seconds%n", seconds);
+            System.out.println("################");
             TimeUnit.SECONDS.sleep(seconds);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

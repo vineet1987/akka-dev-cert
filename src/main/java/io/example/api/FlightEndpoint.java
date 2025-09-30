@@ -1,13 +1,5 @@
 package io.example.api;
 
-import java.util.Collections;
-
-import io.example.application.BookingSlotEntity;
-import io.example.application.ParticipantSlotsView;
-import io.example.domain.Participant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import akka.http.javadsl.model.HttpResponse;
 import akka.javasdk.annotations.Acl;
 import akka.javasdk.annotations.http.Delete;
@@ -18,9 +10,14 @@ import akka.javasdk.client.ComponentClient;
 import akka.javasdk.http.AbstractHttpEndpoint;
 import akka.javasdk.http.HttpException;
 import akka.javasdk.http.HttpResponses;
+import io.example.application.BookingSlotEntity;
+import io.example.application.ParticipantSlotsView;
 import io.example.application.ParticipantSlotsView.SlotList;
+import io.example.domain.Participant;
 import io.example.domain.Participant.ParticipantType;
 import io.example.domain.Timeslot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Acl(allow = @Acl.Matcher(principal = Acl.Principal.INTERNET))
 @HttpEndpoint("/flight")

@@ -32,6 +32,7 @@ public class SlotToParticipantConsumer extends Consumer {
     }
 
     private Effect onEvent(BookingEvent.ParticipantBooked event) {
+        logger.info("Booking participant with Id {} and Booking Id {}", event.participantId(), event.bookingId());
         var command = new ParticipantSlotEntity.Commands.Book(
                 event.slotId(),
                 event.participantId(),
@@ -59,6 +60,7 @@ public class SlotToParticipantConsumer extends Consumer {
     }
 
     private Effect onEvent(BookingEvent.ParticipantMarkedAvailable event) {
+        logger.info("Marking participant as available with Id {} and type {}", event.participantId(), event.participantType());
         var command = new ParticipantSlotEntity.Commands.MarkAvailable(
                 event.slotId(),
                 event.participantId(),
@@ -71,6 +73,7 @@ public class SlotToParticipantConsumer extends Consumer {
     }
 
     private Effect onEvent(BookingEvent.ParticipantUnmarkedAvailable event) {
+        logger.info("UnMarking participant as available with Id {} and type {}", event.participantId(), event.participantType());
         var command = new ParticipantSlotEntity.Commands.UnmarkAvailable(
                 event.slotId(),
                 event.participantId(),
