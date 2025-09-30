@@ -57,6 +57,8 @@ public class BookingSlotEntity extends EventSourcedEntity<Timeslot, BookingEvent
     public Effect<Done> bookSlot(Command.BookReservation cmd) {
         if (!currentState().isBookable(cmd.studentId, cmd.aircraftId, cmd.instructorId)) {
             var errors = validateParticipantAvailability(cmd);
+            var errorString = String.join(", ", errors);
+            logger.warn("Booking error: {}", errorString);
             return effects().error(String.join(", ", errors));
         }
         return effects().persistAll(
