@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
+import java.util.UUID;
 
 class BookingSlotEntityTest {
 
@@ -20,14 +21,15 @@ class BookingSlotEntityTest {
 
     @Test
     void testMarkSlotAvailable() {
-        var testKit = EventSourcedTestKit.of("bestbooking", BookingSlotEntity::new);
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
         participantList.forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
             var result = testKit.method(BookingSlotEntity::markSlotAvailable).invoke(command);
             assertTrue(result.isReply());
 
             var event = result.getNextEventOfType(BookingEvent.ParticipantMarkedAvailable.class);
-            assertEquals("bestbooking", event.slotId());
+            assertEquals(slot, event.slotId());
             assertEquals(p.id(), event.participantId());
             assertEquals(p.participantType(), event.participantType());
         });
@@ -35,7 +37,8 @@ class BookingSlotEntityTest {
 
     @Test
     void testUnmarkSlotAvailable() {
-        var testKit = EventSourcedTestKit.of("bestbooking", BookingSlotEntity::new);
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
         participantList.forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
             var result = testKit.method(BookingSlotEntity::markSlotAvailable).invoke(command);
@@ -46,7 +49,7 @@ class BookingSlotEntityTest {
             assertTrue(unmarkSlotAvailableResult.isReply());
 
             var event = unmarkSlotAvailableResult.getNextEventOfType(BookingEvent.ParticipantUnmarkedAvailable.class);
-            assertEquals("bestbooking", event.slotId());
+            assertEquals(slot, event.slotId());
             assertEquals(p.id(), event.participantId());
             assertEquals(p.participantType(), event.participantType());
         });
@@ -54,7 +57,8 @@ class BookingSlotEntityTest {
 
     @Test
     void testFailUnmarkSlotAvailable() {
-        var testKit = EventSourcedTestKit.of("bestbooking", BookingSlotEntity::new);
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
         participantList.forEach(p -> {
             var unmarkSlotAvailableCommand = new BookingSlotEntity.Command.UnmarkSlotAvailable(p);
             var unmarkSlotAvailableResult = testKit.method(BookingSlotEntity::unmarkSlotAvailable).invoke(unmarkSlotAvailableCommand);
@@ -69,7 +73,10 @@ class BookingSlotEntityTest {
 
     @Test
     void testBookReservation() {
-        var testKit = EventSourcedTestKit.of("bestSlot", BookingSlotEntity::new);
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
+        var bookingId = generateBookingId();
+
         participantList.forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
             var result = testKit.method(BookingSlotEntity::markSlotAvailable).invoke(command);
@@ -80,7 +87,7 @@ class BookingSlotEntityTest {
                 studentParticipant.id(),
                 aircraftParticipant.id(),
                 instructorParticipant.id(),
-                "bestbooking"
+                bookingId
         );
 
         var bookReservationResult = testKit.method(BookingSlotEntity::bookSlot).invoke(bookReservationCommand);
@@ -92,8 +99,8 @@ class BookingSlotEntityTest {
         participantBookedEvents.forEach(event -> {
             assertEquals(BookingEvent.ParticipantBooked.class, event.getClass());
             var participantBookedEvent = (BookingEvent.ParticipantBooked) event;
-            assertEquals("bestbooking", participantBookedEvent.bookingId());
-            assertEquals("bestSlot", participantBookedEvent.slotId());
+            assertEquals(bookingId, participantBookedEvent.bookingId());
+            assertEquals(slot, participantBookedEvent.slotId());
         });
 
         var state = testKit.getState();
@@ -105,18 +112,47 @@ class BookingSlotEntityTest {
 
         var bookingIds = bookings.stream().map(Timeslot.Booking::bookingId).toList().stream().distinct().toList();
         assertEquals(1, bookingIds.size());
-        assertEquals("bestbooking", bookingIds.getFirst());
+        assertEquals(bookingId, bookingIds.getFirst());
     }
 
     @Test
-    void testFailBookReservationWhenNoAvailableParticipants() {
-        var testKit = EventSourcedTestKit.of("bestSlot", BookingSlotEntity::new);
+    void testReBookingABookedSlotShouldFail() {
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
+
+        var bookingId = generateBookingId();
+        participantList.forEach(p -> {
+            var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
+            var result = testKit.method(BookingSlotEntity::markSlotAvailable).invoke(command);
+            assertTrue(result.isReply());
+        });
 
         var bookReservationCommand = new BookingSlotEntity.Command.BookReservation(
                 studentParticipant.id(),
                 aircraftParticipant.id(),
                 instructorParticipant.id(),
-                "bestbooking"
+                bookingId
+        );
+
+        var bookReservationResult = testKit.method(BookingSlotEntity::bookSlot).invoke(bookReservationCommand);
+        assertTrue(bookReservationResult.isReply());
+
+        var reBookReservationResult = testKit.method(BookingSlotEntity::bookSlot).invoke(bookReservationCommand);
+        assertFalse(reBookReservationResult.isReply());
+    }
+
+    @Test
+    void testFailBookReservationWhenNoAvailableParticipants() {
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
+
+        var bookingId = generateBookingId();
+
+        var bookReservationCommand = new BookingSlotEntity.Command.BookReservation(
+                studentParticipant.id(),
+                aircraftParticipant.id(),
+                instructorParticipant.id(),
+                bookingId
         );
 
         var bookReservationResult = testKit.method(BookingSlotEntity::bookSlot).invoke(bookReservationCommand);
@@ -132,7 +168,10 @@ class BookingSlotEntityTest {
 
     @Test
     void testFailBookReservationWhenInstructorIsNotAvailable() {
-        var testKit = EventSourcedTestKit.of("bestSlot", BookingSlotEntity::new);
+        var slot = generateSlot();
+        var testKit = EventSourcedTestKit.of(slot, BookingSlotEntity::new);
+
+        var bookingId = generateBookingId();
 
         List.of(studentParticipant, aircraftParticipant).forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
@@ -144,7 +183,7 @@ class BookingSlotEntityTest {
                 studentParticipant.id(),
                 aircraftParticipant.id(),
                 instructorParticipant.id(),
-                "bestbooking"
+                bookingId
         );
 
         var bookReservationResult = testKit.method(BookingSlotEntity::bookSlot).invoke(bookReservationCommand);
@@ -156,5 +195,13 @@ class BookingSlotEntityTest {
 
         assertEquals(0, bookings.size());
         assertEquals(2, available.size());
+    }
+
+    private String generateSlot() {
+        return "bestSlot-" + UUID.randomUUID();
+    }
+
+    private String generateBookingId() {
+        return "booking-" + UUID.randomUUID();
     }
 }

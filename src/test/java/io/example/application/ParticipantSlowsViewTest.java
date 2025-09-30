@@ -5,13 +5,14 @@ import io.example.domain.Participant;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static akka.Done.done;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ParticipantSlotsViewTest extends TestKitSupport {
+class ParticipantSlowsViewTest extends TestKitSupport {
 
     static Participant studentParticipant = new Participant("alice", Participant.ParticipantType.STUDENT);
     static Participant aircraftParticipant = new Participant("superplane", Participant.ParticipantType.AIRCRAFT);
@@ -21,20 +22,24 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
 
     @Test
     public void testQueryParticipantAvailabilityTest() {
+        var slot = generateSlot();
+
         participantList.forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
-            var result = componentClient.forEventSourcedEntity("bestslot")
+            var result = componentClient.forEventSourcedEntity(slot)
                     .method(BookingSlotEntity::markSlotAvailable)
                     .invoke(command);
-
             assertEquals(done(), result);
-            sleep(5);
+        });
 
+        sleep(5);
+
+        participantList.forEach(p -> {
             var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "available").slots();
             assertEquals(1, slotsList.size());
 
             var slotRow = slotsList.getFirst();
-            assertEquals("bestslot", slotRow.slotId());
+            assertEquals(slot, slotRow.slotId());
             assertEquals(p.id(), slotRow.participantId());
             assertEquals(p.participantType().name(), slotRow.participantType());
             assertTrue(slotRow.bookingId().isEmpty());
@@ -43,9 +48,12 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
 
     @Test
     public void testQueryParticipantBookedTest() {
+        var slot = generateSlot();
+        var bookingId = generateBooking();
+
         participantList.forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
-            var result = componentClient.forEventSourcedEntity("bestslot1")
+            var result = componentClient.forEventSourcedEntity(slot)
                     .method(BookingSlotEntity::markSlotAvailable)
                     .invoke(command);
 
@@ -53,8 +61,8 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
         });
 
         var bookCommand = new BookingSlotEntity.Command.BookReservation(studentParticipant.id(),
-                aircraftParticipant.id(), instructorParticipant.id(), "booking1");
-        var bookResult = componentClient.forEventSourcedEntity("bestslot1")
+                aircraftParticipant.id(), instructorParticipant.id(), bookingId);
+        var bookResult = componentClient.forEventSourcedEntity(slot)
                 .method(BookingSlotEntity::bookSlot)
                 .invoke(bookCommand);
 
@@ -67,18 +75,21 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
             assertEquals(1, slotsList.size());
 
             var slotRow = slotsList.getFirst();
-            assertEquals("bestslot1", slotRow.slotId());
+            assertEquals(slot, slotRow.slotId());
             assertEquals(p.id(), slotRow.participantId());
             assertEquals(p.participantType().name(), slotRow.participantType());
-            assertEquals("booking1", slotRow.bookingId());
+            assertEquals(bookingId, slotRow.bookingId());
         });
     }
 
     @Test
     public void testQueryParticipantCancelBookingTest() {
+        var slot = generateSlot();
+        var bookingId = generateBooking();
+
         participantList.forEach(p -> {
             var command = new BookingSlotEntity.Command.MarkSlotAvailable(p);
-            var result = componentClient.forEventSourcedEntity("bestslot2")
+            var result = componentClient.forEventSourcedEntity(slot)
                     .method(BookingSlotEntity::markSlotAvailable)
                     .invoke(command);
 
@@ -86,23 +97,24 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
         });
 
         var bookCommand = new BookingSlotEntity.Command.BookReservation(studentParticipant.id(),
-                aircraftParticipant.id(), instructorParticipant.id(), "booking2");
-        var bookResult = componentClient.forEventSourcedEntity("bestslot2")
+                aircraftParticipant.id(), instructorParticipant.id(), bookingId);
+        var bookResult = componentClient.forEventSourcedEntity(slot)
                 .method(BookingSlotEntity::bookSlot)
                 .invoke(bookCommand);
 
         assertEquals(done(), bookResult);
 
-        var cancelBookingResult = componentClient.forEventSourcedEntity("bestslot2")
+        var cancelBookingResult = componentClient.forEventSourcedEntity(slot)
                 .method(BookingSlotEntity::cancelBooking)
-                .invoke("booking2");
+                .invoke(bookingId);
 
         assertEquals(done(), cancelBookingResult);
 
         sleep(10);
 
         participantList.forEach(p -> {
-            var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "canceled").slots().stream().filter(slot -> slot.slotId().equals("bestslot2")).toList();
+            var slotsList = querySlotsByParticipantIdAndStatus(p.id(), "canceled").slots().stream()
+                    .filter(s -> s.slotId().equals(slot)).toList();
             assertEquals(1, slotsList.size());
 
             var slotRow = slotsList.getFirst();
@@ -134,5 +146,13 @@ public class ParticipantSlotsViewTest extends TestKitSupport {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private String generateSlot() {
+        return "bestSlot-" + UUID.randomUUID();
+    }
+
+    private String generateBooking() {
+        return "booking-" + UUID.randomUUID();
     }
 }
